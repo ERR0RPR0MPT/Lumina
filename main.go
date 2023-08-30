@@ -1002,7 +1002,7 @@ func AutoRun() {
 		}
 		if input == "1" {
 			clearScreen()
-			Encode("", 0, 350, -8, 24, 35999, "veryslow", "")
+			Encode("", 0, 350, -8, 24, 10800, "medium", "")
 			break
 		} else if input == "2" {
 			clearScreen()
@@ -1030,8 +1030,8 @@ func main() {
 		fmt.Fprintln(os.Stdout, " -s\tThe qrcode size(default=-8), -16~1000")
 		fmt.Fprintln(os.Stdout, " -d\tThe data slice length(default=350), 50-1500")
 		fmt.Fprintln(os.Stdout, " -p\tThe output video fps setting(default=24), 1-60")
-		fmt.Fprintln(os.Stdout, " -l\tThe output video max segment length(seconds) setting(default=35999), 1-10^9")
-		fmt.Fprintln(os.Stdout, " -m\tFFmpeg mode(default=veryslow): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+		fmt.Fprintln(os.Stdout, " -l\tThe output video max segment length(seconds) setting(default=10800), 1-10^9")
+		fmt.Fprintln(os.Stdout, " -m\tFFmpeg mode(default=medium): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
 		fmt.Fprintln(os.Stdout, " -a\tAn summary you would like to add to this document(default=\"\")")
 		fmt.Fprintln(os.Stdout, "decode\tDecode a file")
 		fmt.Fprintln(os.Stdout, " Options:")
@@ -1046,8 +1046,8 @@ func main() {
 	encodeQrcodeSize := encodeFlag.Int("s", -8, "The qrcode size(default=-8), -16~1000")
 	encodeDataSliceLen := encodeFlag.Int("d", 350, "The data slice length(default=350), 50-1500")
 	encodeOutputFPS := encodeFlag.Int("p", 24, "The output video fps setting(default=24), 1-60")
-	encodeSegmentSeconds := encodeFlag.Int("l", 35999, "The output video max segment length(seconds) setting(default=35999), 1-10^9")
-	encodeFFmpegMode := encodeFlag.String("m", "veryslow", "FFmpeg mode(default=veryslow): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+	encodeSegmentSeconds := encodeFlag.Int("l", 10800, "The output video max segment length(seconds) setting(default=10800), 1-10^9")
+	encodeFFmpegMode := encodeFlag.String("m", "medium", "FFmpeg mode(default=medium): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
 	encodeSummary := encodeFlag.String("a", "", "An summary you would like to add to this document(default=\"\")")
 
 	decodeFlag := flag.NewFlagSet("decode", flag.ExitOnError)
