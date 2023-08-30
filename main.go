@@ -34,6 +34,26 @@ import (
 const en = "Encode:"
 const de = "Decode:"
 
+type IndexData struct {
+	Hash    string `json:"hash"`
+	Name    string `json:"name"`
+	Index   int    `json:"index"`
+	Len     int    `json:"len"`
+	Resize  int    `json:"resize"`
+	Summary string `json:"summary"`
+}
+
+type IndexReadData struct {
+	Width      int
+	Height     int
+	frameCount int
+	Name       string
+	Len        int
+	Resize     int
+	Summary    string
+	Path       []string
+}
+
 func PressEnterToContinue() {
 	fmt.Print("请按回车键继续...")
 	reader := bufio.NewReader(os.Stdin)
@@ -328,25 +348,7 @@ func QrDecode(resizedImg image.Image, i int, isInput bool) []byte {
 	return data
 }
 
-type IndexData struct {
-	Hash   string `json:"hash"`
-	Name   string `json:"name"`
-	Index  int    `json:"index"`
-	Len    int    `json:"len"`
-	Resize int    `json:"resize"`
-}
-
-type IndexReadData struct {
-	Width      int
-	Height     int
-	frameCount int
-	Name       string
-	Len        int
-	Resize     int
-	Path       []string
-}
-
-func Encode(fileDir string, qrcodeErrorCorrection int, dataSliceLen int, qrcodeSize int, outputFPS int, segmentSeconds int, encodeFFmpegMode string) {
+func Encode(fileDir string, qrcodeErrorCorrection int, dataSliceLen int, qrcodeSize int, outputFPS int, segmentSeconds int, encodeFFmpegMode string, encodeSummary string) {
 	// 当没有检测到fileDir时，自动匹配路径
 	if fileDir == "" {
 		fileDir = "."
@@ -387,6 +389,15 @@ func Encode(fileDir string, qrcodeErrorCorrection int, dataSliceLen int, qrcodeS
 			}
 			filePathList = append(filePathList, fileDict[index])
 			break
+		}
+	}
+
+	// 输入摘要
+	if encodeSummary == "" {
+		fmt.Println(en, "请输入对这些文本的摘要概括，不超过50个字符，回车以继续")
+		encodeSummary = GetUserInput()
+		if encodeSummary == "" {
+			fmt.Println(en, "注意：未输入摘要，解码时摘要将为空")
 		}
 	}
 
@@ -508,11 +519,12 @@ func Encode(fileDir string, qrcodeErrorCorrection int, dataSliceLen int, qrcodeS
 
 			// 构建索引二维码
 			indexData := IndexData{
-				Hash:   InputFileHash,
-				Name:   filepath.Base(filePath),
-				Index:  segmentsIndex,
-				Len:    segmentsNum,
-				Resize: qrcodeSize,
+				Hash:    InputFileHash,
+				Name:    filepath.Base(filePath),
+				Index:   segmentsIndex,
+				Len:     segmentsNum,
+				Resize:  qrcodeSize,
+				Summary: encodeSummary,
 			}
 			jsonIndexData, err := json.Marshal(indexData)
 			if err != nil {
@@ -738,6 +750,9 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 		} else {
 			t[indexData.Index] = videoFilePath
 		}
+		if indexData.Summary == "" {
+			indexData.Summary = "无"
+		}
 		indexReadData[indexData.Hash] = IndexReadData{
 			Width:      videoWidth,
 			Height:     videoHeight,
@@ -745,6 +760,7 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 			Name:       indexData.Name,
 			Len:        indexData.Len,
 			Resize:     indexData.Resize,
+			Summary:    indexData.Summary,
 			Path:       t,
 		}
 	}
@@ -777,6 +793,7 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 		for _, path := range data.Path {
 			fmt.Println(de, "      ", path)
 		}
+		fmt.Println(de, "  摘要:", data.Summary)
 		fmt.Println(de, "  ---------------------------")
 	}
 
@@ -844,6 +861,7 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 			fmt.Println(de, "      ", path)
 		}
 		fmt.Println(de, "  输出文件路径:", outputFilePath)
+		fmt.Println(de, "  摘要:", s.Summary)
 		fmt.Println(de, "  ---------------------------")
 
 		// 打开输出文件
@@ -908,7 +926,7 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 					fmt.Println(de, "还原原始数据失败: 无法识别二维码")
 					return
 				}
-				bar.SetCurrent(int64(i))
+				bar.SetCurrent(int64(i + 1))
 				if i%1000 == 0 {
 					fmt.Printf("\nDecode: 写入帧 %d 总帧 %d\n", i, s.frameCount)
 				}
@@ -952,6 +970,7 @@ func Decode(videoFileDir string, videoResizeTimes float64) {
 			fmt.Println(de, "      ", path)
 		}
 		fmt.Println(de, "  输出文件路径:", outputFilePath)
+		fmt.Println(de, "  摘要:", s.Summary)
 		fmt.Println(de, "  输入文件Hash:", targetHash)
 		fmt.Println(de, "  输出文件Hash:", OutputFileHash)
 		if OutputFileHash != targetHash {
@@ -983,7 +1002,7 @@ func AutoRun() {
 		}
 		if input == "1" {
 			clearScreen()
-			Encode("", 0, 350, -8, 24, 35999, "ultrafast")
+			Encode("", 0, 350, -8, 24, 35999, "ultrafast", "")
 			break
 		} else if input == "2" {
 			clearScreen()
@@ -1006,32 +1025,34 @@ func main() {
 		fmt.Fprintln(os.Stdout, "\nCommands:")
 		fmt.Fprintln(os.Stdout, "encode\tEncode a file")
 		fmt.Fprintln(os.Stdout, " Options:")
-		fmt.Fprintln(os.Stdout, " -i\tthe input file to encode")
-		fmt.Fprintln(os.Stdout, " -q\tthe qrcode error correction level(default=0), 0-3")
-		fmt.Fprintln(os.Stdout, " -s\tthe qrcode size(default=-8), -16~1000")
-		fmt.Fprintln(os.Stdout, " -d\tthe data slice length(default=350), 50-1500")
-		fmt.Fprintln(os.Stdout, " -p\tthe output video fps setting(default=24), 1-60")
-		fmt.Fprintln(os.Stdout, " -l\tthe output video max segment length(seconds) setting(default=35999), 1-10^9")
-		fmt.Fprintln(os.Stdout, " -m\tffmpeg mode(default=ultrafast): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+		fmt.Fprintln(os.Stdout, " -i\tThe input file to encode")
+		fmt.Fprintln(os.Stdout, " -q\tThe qrcode error correction level(default=0), 0-3")
+		fmt.Fprintln(os.Stdout, " -s\tThe qrcode size(default=-8), -16~1000")
+		fmt.Fprintln(os.Stdout, " -d\tThe data slice length(default=350), 50-1500")
+		fmt.Fprintln(os.Stdout, " -p\tThe output video fps setting(default=24), 1-60")
+		fmt.Fprintln(os.Stdout, " -l\tThe output video max segment length(seconds) setting(default=35999), 1-10^9")
+		fmt.Fprintln(os.Stdout, " -m\tFFmpeg mode(default=ultrafast): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+		fmt.Fprintln(os.Stdout, " -a\tAn summary you would like to add to this document(default=\"\")")
 		fmt.Fprintln(os.Stdout, "decode\tDecode a file")
 		fmt.Fprintln(os.Stdout, " Options:")
-		fmt.Fprintln(os.Stdout, " -i\tthe input file to decode")
-		fmt.Fprintln(os.Stdout, " -x\tthe bigNx of the qrcode in the video(default=-1, adaptive), -1||0.0<x<=10.0")
+		fmt.Fprintln(os.Stdout, " -i\tThe input file to decode")
+		fmt.Fprintln(os.Stdout, " -x\tThe bigNx of the qrcode in the video(default=-1, adaptive), -1||0.0<x<=10.0")
 		fmt.Fprintln(os.Stdout, "help\tShow this help")
 		flag.PrintDefaults()
 	}
 	encodeFlag := flag.NewFlagSet("encode", flag.ExitOnError)
-	encodeInput := encodeFlag.String("i", "", "the input file to encode")
-	encodeQrcodeErrorCorrection := encodeFlag.Int("q", 0, "the qrcode error correction level(default=0), 0-3")
-	encodeQrcodeSize := encodeFlag.Int("s", -8, "the qrcode size(default=-8), -16~1000")
-	encodeDataSliceLen := encodeFlag.Int("d", 350, "the data slice length(default=350), 50-1500")
-	encodeOutputFPS := encodeFlag.Int("p", 24, "the output video fps setting(default=24), 1-60")
-	encodeSegmentSeconds := encodeFlag.Int("l", 35999, "the output video max segment length(seconds) setting(default=35999), 1-10^9")
-	encodeFFmpegMode := encodeFlag.String("m", "ultrafast", "ffmpeg mode(default=ultrafast): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+	encodeInput := encodeFlag.String("i", "", "The input file to encode")
+	encodeQrcodeErrorCorrection := encodeFlag.Int("q", 0, "The qrcode error correction level(default=0), 0-3")
+	encodeQrcodeSize := encodeFlag.Int("s", -8, "The qrcode size(default=-8), -16~1000")
+	encodeDataSliceLen := encodeFlag.Int("d", 350, "The data slice length(default=350), 50-1500")
+	encodeOutputFPS := encodeFlag.Int("p", 24, "The output video fps setting(default=24), 1-60")
+	encodeSegmentSeconds := encodeFlag.Int("l", 35999, "The output video max segment length(seconds) setting(default=35999), 1-10^9")
+	encodeFFmpegMode := encodeFlag.String("m", "ultrafast", "FFmpeg mode(default=ultrafast): ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo")
+	encodeSummary := encodeFlag.String("a", "", "An summary you would like to add to this document(default=\"\")")
 
 	decodeFlag := flag.NewFlagSet("decode", flag.ExitOnError)
-	decodeInputDir := decodeFlag.String("i", "", "the input dir include video segments to decode")
-	decodeBigNx := decodeFlag.Float64("x", -1, "the bigNx of the qrcode in the video(default=-1, adaptive), -1||0.0<x<=10.0")
+	decodeInputDir := decodeFlag.String("i", "", "The input dir include video segments to decode")
+	decodeBigNx := decodeFlag.Float64("x", -1, "The bigNx of the qrcode in the video(default=-1, adaptive), -1||0.0<x<=10.0")
 	if len(os.Args) < 2 {
 		AutoRun()
 		PressEnterToContinue()
@@ -1044,7 +1065,7 @@ func main() {
 			fmt.Println(en, "参数解析错误")
 			return
 		}
-		Encode(*encodeInput, *encodeQrcodeErrorCorrection, *encodeDataSliceLen, *encodeQrcodeSize, *encodeOutputFPS, *encodeSegmentSeconds, *encodeFFmpegMode)
+		Encode(*encodeInput, *encodeQrcodeErrorCorrection, *encodeDataSliceLen, *encodeQrcodeSize, *encodeOutputFPS, *encodeSegmentSeconds, *encodeFFmpegMode, *encodeSummary)
 	case "decode":
 		err := decodeFlag.Parse(os.Args[2:])
 		if err != nil {

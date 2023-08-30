@@ -10,6 +10,8 @@
 
 需要安装依赖 `ffmpeg` 和 `ffprobe`.
 
+> 可选依赖 `python3` `pyzbar` (用于提升二维码识别正确率)
+
 ### Linux
 
 ```bash
@@ -36,7 +38,7 @@ apt update && apt install ffmpeg
 
 ## 高级用法
 
-```bash
+```
 Usage: D:\WeclontCode\Go\Lumina-go\build\lumina.exe [command] [options]
 Double-click to run: Start via automatic mode
 
